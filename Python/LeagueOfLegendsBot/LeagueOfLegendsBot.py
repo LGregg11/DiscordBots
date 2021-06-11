@@ -1,5 +1,5 @@
 from Python.DiscordBotClient import DiscordBotClient
-from Python.LeagueOfLegendsBot.LeagueOfLegendsWrapper import LolWrapper
+from Python.LeagueOfLegendsBot.LolAPIWrapper.LolAPIWrapper import LolAPIWrapper
 import pathlib
 
 CONFIGS = {
@@ -21,7 +21,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
             CONFIGS["command_prefix"] if not command_prefix else command_prefix,
             debug
         )
-        self.lol_wrapper = LolWrapper()
+        self.lol_api_wrapper = LolAPIWrapper()
         self.commands = {
             "help": self.get_help,
             "rank": self.get_summoner_rank,
@@ -51,5 +51,5 @@ class LeagueOfLegendsBot(DiscordBotClient):
     def get_summoner_rank(self, *args):
         rank_list = []
         for summoner_name in args:
-            rank_list.append(self.lol_wrapper.get_summoner_rank_by_name(summoner_name))
+            rank_list.append(self.lol_api_wrapper.get_summoner_rank_by_name(summoner_name))
         return "\n".join(rank_list)
