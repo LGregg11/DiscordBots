@@ -20,52 +20,40 @@ class DiscordBotClient(discord.Client):
         self.bot_thread = Thread(target=self.start_bot_thread, daemon=True, name="Bot Thread")
 
     @staticmethod
-    def correct_arg_list(arg_list):
+    def arg_split(s):
         """
-        Corrects a list of white-spaced strings, and merges any strings between quotations.
+        Correctly splits args depending on whether they are quoted or not.
 
-        TODO: Tidy up the if/else section.
-
-        :param arg_list: a list of white-spaced args
-        :return: a corrected list of arguments
+        :param s: A string of args
+        :return: A correctly split list of args
         """
-
-        quotation_types = ["\"", "\'"]
-        quotation_type_used = ""
-        quoted_args = []
-        corrected_arg_list = []
-        for arg in arg_list:
-            # Checking the args surrounded with quotes
-            if not quotation_type_used and arg.startswith(tuple(quotation_types)):
-                quotation_type_used = arg[0]
-                if len(arg) > 1:
-                    if arg.endswith(quotation_type_used):
-                        corrected_arg_list.append(arg.replace(quotation_type_used, ""))
-                        quotation_type_used = ""
-                    else:
-                        quoted_args.append(arg.removeprefix(quotation_type_used))
-                continue
-
-            if quotation_type_used and arg.startswith(quotation_type_used):
-                corrected_arg_list.append(" ".join(quoted_args))
-                arg = arg.removeprefix(quotation_type_used)
-                quoted_args = []
-
-            if quotation_type_used and not arg.endswith(quotation_type_used):
-                quoted_args.append(arg)
-            elif quotation_type_used and arg.endswith(quotation_type_used):
-                quoted_args.append(arg.removesuffix(quotation_type_used))
-                corrected_arg_list.append(" ".join(quoted_args))
-
-                # Reset quote type and args list
-                quoted_args = []
-                quotation_type_used = ""
+        quote_types = ['\"', '\'']
+        result = []
+        temp = ""
+        quote_type = ''
+        for c in s:
+            stemp = temp.strip()
+            if c in quote_types and not quote_type:
+                if len(stemp) > 0:
+                    result.append(stemp)
+                temp = ""
+                quote_type = c
+            elif c == quote_type and quote_type:
+                if len(stemp) > 0:
+                    result.append(stemp)
+                temp = ""
+                quote_type = ''
+            elif c == " " and not quote_type:
+                if len(stemp) > 0:
+                    result.append(stemp)
+                temp = ""
             else:
-                corrected_arg_list.append(arg)
-
-        if quoted_args:
-            corrected_arg_list.append(" ".join(quoted_args) if len(quoted_args) > 1 else quoted_args[0])
-        return corrected_arg_list
+                temp += c
+        stemp = temp.strip()
+        if len(stemp) > 0:
+            result.append(stemp)
+            print(result)
+        return result
 
     def get_file_details(self, filename):
         return json.load(open(f"{self.bot_dir}\\{filename}"))
