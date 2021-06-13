@@ -19,6 +19,54 @@ class DiscordBotClient(discord.Client):
         self._bot_details = self.get_file_details(self.bot_details_filename)
         self.bot_thread = Thread(target=self.start_bot_thread, daemon=True, name="Bot Thread")
 
+    @staticmethod
+    def correct_arg_list(arg_list):
+        """
+        Corrects a list of white-spaced strings, and merges any strings between quotations.
+
+        TODO: Tidy up the if/else section.
+
+        :param arg_list: a list of white-spaced args
+        :return: a corrected list of arguments
+        """
+
+        quotation_types = ["\"", "\'"]
+        quotation_type_used = ""
+        quoted_args = []
+        corrected_arg_list = []
+        for arg in arg_list:
+            # Checking the args surrounded with quotes
+            if not quotation_type_used and arg.startswith(tuple(quotation_types)):
+                quotation_type_used = arg[0]
+                if len(arg) > 1:
+                    if arg.endswith(quotation_type_used):
+                        corrected_arg_list.append(arg.replace(quotation_type_used, ""))
+                        quotation_type_used = ""
+                    else:
+                        quoted_args.append(arg.removeprefix(quotation_type_used))
+                continue
+
+            if quotation_type_used and arg.startswith(quotation_type_used):
+                corrected_arg_list.append(" ".join(quoted_args))
+                arg = arg.removeprefix(quotation_type_used)
+                quoted_args = []
+
+            if quotation_type_used and not arg.endswith(quotation_type_used):
+                quoted_args.append(arg)
+            elif quotation_type_used and arg.endswith(quotation_type_used):
+                quoted_args.append(arg.removesuffix(quotation_type_used))
+                corrected_arg_list.append(" ".join(quoted_args))
+
+                # Reset quote type and args list
+                quoted_args = []
+                quotation_type_used = ""
+            else:
+                corrected_arg_list.append(arg)
+
+        if quoted_args:
+            corrected_arg_list.append(" ".join(quoted_args) if len(quoted_args) > 1 else quoted_args[0])
+        return corrected_arg_list
+
     def get_file_details(self, filename):
         return json.load(open(f"{self.bot_dir}\\{filename}"))
 
