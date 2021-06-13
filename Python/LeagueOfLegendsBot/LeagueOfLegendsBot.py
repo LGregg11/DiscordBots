@@ -45,9 +45,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
 
         if " " in full_command:
             command = full_command.split(" ")[0]
-            print(full_command.split(" ")[1:])
-            args = self.correct_arg_list(full_command.split(" ")[1:])
-            print(args)
+            args = self.arg_split(" ".join(full_command.split(" ")[1:]))
         else:
             command = full_command
             args = []
