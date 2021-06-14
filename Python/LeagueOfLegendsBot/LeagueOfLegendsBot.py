@@ -1,5 +1,6 @@
 from Python.DiscordBotClient import DiscordBotClient
 from Python.LeagueOfLegendsBot.LolAPIWrapper.LolAPIWrapper import LolAPIWrapper
+from Python.LeagueOfLegendsBot.LoLWebScraper import LoLWebScraper
 import pathlib
 
 CONFIGS = {
@@ -50,18 +51,23 @@ class LeagueOfLegendsBot(DiscordBotClient):
             "III": "3",
             "IV": "4"
         }
-
-        self.lol_api_wrapper = LolAPIWrapper()
         self.commands = {
             "help": {
                 "function": self.get_help,
                 "help": f"{self.command_prefix}help"
             },
             "rank": {
-                "function": self.get_summoner_rank,
-                "help": f"{self.command_prefix}rank \"name 1\" name2 ... \'name n\'",
+                "function": self.get_rank,
+                "help": f"{self.command_prefix}rank \"name 1\" name2 ... \'name n\'"
+            },
+            "winloss": {
+                "function": self.get_ranked_win_loss,
+                "help": f"{self.command_prefix}winloss \"name 1\" name2 ... \'name n\'"
             }
         }
+
+        self.lol_api_wrapper = LolAPIWrapper()
+        self.lol_web_scraper = LoLWebScraper()
 
     async def on_message(self, ctx):
         if not ctx.content.startswith(self.command_prefix):
@@ -100,7 +106,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
 
         await channel.send(f"```list of commands:{join_str}" + join_str.join(command_help_list) + "```")
 
-    async def get_summoner_rank(self, channel, *summoner_names):
+    async def get_rank(self, channel, *summoner_names):
         """
         Input a list of summoner names, using the LolAPIWrapper to access LoL Summoner rank details.
         Details include: Rank, Division, LP, whether the summoner is on a hot streak, a veteran etc.
@@ -108,32 +114,47 @@ class LeagueOfLegendsBot(DiscordBotClient):
         :param summoner_names: list of summoner names to check each summoner's rank details.
         """
 
-        summoner_rank_strings = []
+        def get_rank_details(summoner_name, rank_dict):
+            if not rank_dict or len(rank_dict) == 0:
+                return f"{summoner_name} - no rank"
+            s = f"{summoner_name} - {self.ranks[rank_dict['tier']]} {self.divisions[rank_dict['rank']]}, {rank_dict['leaguePoints']}lp"
+
+            if "miniSeries" in rank_dict.keys():
+                progress = rank_dict["miniSeries"]["progress"].replace(
+                    "W", self.discord_emotes["W"]).replace(
+                    "L", self.discord_emotes["L"]).replace(
+                    "N", self.discord_emotes["N"])
+                s += f" (promos: {progress})"
+            if "hotStreak" in rank_dict.keys() and rank_dict["hotStreak"]:
+                s += f" {self.discord_emotes['fire']}"
+            if "veteran" in rank_dict.keys() and rank_dict["veteran"]:
+                s += f" {self.discord_emotes['veteran']}"
+            if "freshBlood" in rank_dict.keys() and rank_dict["freshBlood"]:
+                s += f" {self.discord_emotes['blood']}"
+            if "inactive" in rank_dict.keys() and rank_dict["inactive"]:
+                s += f" {self.discord_emotes['inactive']}"
+            return s
+
+        summoner_rank_list = []
         for summoner_name in summoner_names:
             try:
                 summoner_rank_json = self.lol_api_wrapper.get_summoner_rank_by_name(summoner_name)
-                summoner_rank_strings.append(self.get_specific_rank_details(summoner_name, summoner_rank_json[0]))
+                summoner_rank_list.append(get_rank_details(summoner_name, summoner_rank_json[0]))
             except Exception as ex:
-                summoner_rank_strings.append(str(ex))
-        await channel.send("\n".join(summoner_rank_strings))
+                summoner_rank_list.append(str(ex))
+        await channel.send("\n".join(summoner_rank_list))
 
-    def get_specific_rank_details(self, summoner_name, rank_dict):
-        if not rank_dict or len(rank_dict) == 0:
-            return f"{summoner_name} - no rank"
-        s = f"{summoner_name} - {self.ranks[rank_dict['tier']]} {self.divisions[rank_dict['rank']]}, {rank_dict['leaguePoints']}lp"
-
-        if "miniSeries" in rank_dict.keys():
-            progress = rank_dict["miniSeries"]["progress"].replace(
-                "W", self.discord_emotes["W"]).replace(
-                "L", self.discord_emotes["L"]).replace(
-                "N", self.discord_emotes["N"])
-            s += f" (promos: {progress})"
-        if "hotStreak" in rank_dict.keys() and rank_dict["hotStreak"]:
-            s += f" {self.discord_emotes['fire']}"
-        if "veteran" in rank_dict.keys() and rank_dict["veteran"]:
-            s += f" {self.discord_emotes['veteran']}"
-        if "freshBlood" in rank_dict.keys() and rank_dict["freshBlood"]:
-            s += f" {self.discord_emotes['blood']}"
-        if "inactive" in rank_dict.keys() and rank_dict["inactive"]:
-            s += f" {self.discord_emotes['inactive']}"
-        return s
+    async def get_ranked_win_loss(self, channel, *summoner_names):
+        win_loss_list = []
+        for summoner_name in summoner_names:
+            try:
+                rank_summary = self.lol_web_scraper.get_winloss(summoner_name)
+                if not rank_summary["wins"]:
+                    raise RuntimeError(f"{summoner_name} - Could not find summoner in {self.lol_web_scraper.region}")
+                win_loss_list.append(
+                    f"{summoner_name} - {rank_summary['wins']} {rank_summary['losses']} ({rank_summary['ratio']})"
+                )
+            except RuntimeError as ex:
+                print(str(ex))
+                win_loss_list.append(str(ex))
+        await channel.send("\n".join(win_loss_list))
