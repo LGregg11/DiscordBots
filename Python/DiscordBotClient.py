@@ -18,6 +18,9 @@ class DiscordBotClient(discord.Client):
         self.command_prefix = command_prefix
         self._bot_details = self.get_file_details(self.bot_details_filename)
         self.bot_thread = Thread(target=self.start_bot_thread, daemon=True, name="Bot Thread")
+        self.discord_emotes = {
+            "fire": ":fire:"
+        }
 
     @staticmethod
     def arg_split(s):
@@ -32,28 +35,25 @@ class DiscordBotClient(discord.Client):
         temp = ""
         quote_type = ''
         for c in s:
-            stemp = temp.strip()
             if c in quote_types and not quote_type:
-                if len(stemp) > 0:
-                    result.append(stemp)
+                if len(temp) > 0:
+                    result.append(temp)
                 temp = ""
                 quote_type = c
             elif c == quote_type and quote_type:
-                if len(stemp) > 0:
-                    result.append(stemp)
+                if len(temp) > 0:
+                    result.append(temp)
                 temp = ""
                 quote_type = ''
             elif c == " " and not quote_type:
-                if len(stemp) > 0:
-                    result.append(stemp)
+                if len(temp) > 0:
+                    result.append(temp)
                 temp = ""
             else:
                 temp += c
-        stemp = temp.strip()
-        if len(stemp) > 0:
-            result.append(stemp)
-            print(result)
-        return result
+        if len(temp) > 0:
+            result.append(temp)
+        return (x.strip() for x in result if x.strip())
 
     def get_file_details(self, filename):
         return json.load(open(f"{self.bot_dir}\\{filename}"))
