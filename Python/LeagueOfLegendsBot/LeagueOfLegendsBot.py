@@ -67,7 +67,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
             },
             "champs": {
                 "function": self.get_ranked_champs,
-                "help": f"{self.command_prefix}champs <name>\t OR\t {self.command_prefix}champs <season> <name>"
+                "help": f"{self.command_prefix}champs name season*\t * - optional (default: current season)"
             }
         }
 
@@ -166,10 +166,11 @@ class LeagueOfLegendsBot(DiscordBotClient):
 
     async def get_ranked_champs(self, channel, *args):
         if len(args) == 1:
-            season = "2021"
             summoner_name = args[0]
+
+            season = "2021"
         elif len(args) == 2:
-            season, summoner_name = args
+            summoner_name, season = args
         else:
             await channel.send(f"Unexpected number of arguments given, use {self.command_prefix}help!")
             return
