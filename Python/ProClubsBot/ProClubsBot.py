@@ -21,12 +21,7 @@ class ProClubsBot(DiscordBotClient):
         )
         self.team_name = team_name
         self.discord_emotes |= {
-            "veteran": ":older_adult:",
-            "blood": ":drop_of_blood:",
-            "inactive": ":sleeping:",
-            "W": ":white_check_mark:",
-            "L": ":x:",
-            "N": ":shrug:"
+            "star": ":star:"
         }
         self.commands = {
             "help": {
@@ -36,6 +31,10 @@ class ProClubsBot(DiscordBotClient):
             "club": {
                 "function": self.get_club,
                 "help": f"{self.command_prefix}club \"team name\"*%s* not required (default to 'AntiFun')" % "\t"*15
+            },
+            "season": {
+                "function": self.get_season,
+                "help": f"{self.command_prefix}season \"team name\"*%s* not required (default to 'AntiFun')" % "\t"*15
             },
             "members": {
                 "function": self.get_members,
@@ -90,8 +89,40 @@ class ProClubsBot(DiscordBotClient):
     async def get_club(self, channel, *args):
         team_name = self._get_team_name(*args)
         response = self.pro_clubs_web_scraper.get_club(team_name)
-        print(json.dumps(response, indent=4, sort_keys=True))
-        await channel.send("check logs")
+
+        stats = response[list(response.keys())[0]]
+
+        match_history = self.get_match_history(stats)
+
+        s = f"""```Team: {stats["clubInfo"]["name"]}
+Matches played: {stats["totalGames"]}
+Wins: {stats["wins"]}
+Draws: {stats["ties"]}
+Losses: {stats["losses"]}
+Current Division: {stats["currentDivision"]}
+Best Division: {stats["bestDivision"]}
+Skill rating: {int(stats["starLevel"])/2.0} stars
+Match History: {match_history}
+All-Time Goals: {stats["alltimeGoals"]}
+All-Time Goals against: {stats["alltimeGoalsAgainst"]}```"""
+
+        await channel.send(s)
+
+    async def get_season(self, channel, *args):
+        team_name = self._get_team_name(*args)
+        response = self.pro_clubs_web_scraper.get_club(team_name)
+
+        stats = response[list(response.keys())[0]]
+        played = int(stats["gamesPlayed"])
+        match_history = self.get_match_history(stats)[-played:] + "-" * (10-played)
+
+        s = f"""```Team: {stats["clubInfo"]["name"]}
+Division: {stats["currentDivision"]}
+Matches played: {stats["gamesPlayed"]} ({match_history.count("W")}W-{match_history.count("D")}D-{match_history.count("L")}L)
+Match History: {match_history}
+Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
+
+        await channel.send(s)
 
     async def get_members(self, channel, *args):
         team_name = self._get_team_name(*args)
@@ -133,3 +164,16 @@ class ProClubsBot(DiscordBotClient):
                   ]].rename(columns=columns).to_string(index=False)
 
         await channel.send(f"```{table_string}```")
+
+    @staticmethod
+    def get_match_history(stats):
+        result_map = {
+            "2": "W",
+            "1": "D",
+            "0": "L"
+        }
+        match_history = []
+        for i in reversed(range(10)):
+            match_history.append(result_map[stats[f"lastMatch{i}"]])
+
+        return "".join(match_history)
