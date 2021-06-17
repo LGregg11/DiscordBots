@@ -30,15 +30,15 @@ class ProClubsBot(DiscordBotClient):
             },
             "club": {
                 "function": self.get_club,
-                "help": f"{self.command_prefix}club \"team name\"*%s* not required (default to 'AntiFun')" % "\t"*15
+                "help": f"{self.command_prefix}club    \"team name\"* *(default: 'AntiFun'')"
             },
             "season": {
                 "function": self.get_season,
-                "help": f"{self.command_prefix}season \"team name\"*%s* not required (default to 'AntiFun')" % "\t"*15
+                "help": f"{self.command_prefix}season  \"team name\"*"
             },
             "members": {
                 "function": self.get_members,
-                "help": f"{self.command_prefix}members \"team name\"*%s* not required (default to 'AntiFun')" % "\t"*15
+                "help": f"{self.command_prefix}members \"team name\"*"
             }
         }
 
