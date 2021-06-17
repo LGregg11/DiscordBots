@@ -125,15 +125,18 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
         await channel.send(s)
 
     async def get_members(self, channel, *args):
+        """
+        TODO - Allow users to 'order by'. Add '^' to the column name that is being sorted by
+        TODO - Goals avg, Assists avg, Goal inv., Goal inv. avg
+        :param channel:
+        :param args:
+        :return:
+        """
+
+        sort_by = "Name"
         team_name = self._get_team_name(*args)
         response = self.pro_clubs_web_scraper.get_members(team_name)
 
-        """
-        Goals avg,
-        Assists avg,
-        Goal inv.,
-        Goal inv. avg,
-        """
         columns = {
             "proName": "Name",
             "gamesPlayed": "Apps",
@@ -149,7 +152,7 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
         }
 
         table = pd.DataFrame().from_dict(response["members"])
-        table_string = table[[
+        table = table[[
             "proName",
             "gamesPlayed",
             "goals",
@@ -161,9 +164,17 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
             "manOfTheMatch",
             "tacklesMade",
             "tackleSuccessRate"
-                  ]].rename(columns=columns).to_string(index=False)
+                  ]].rename(columns=columns)
+        numeric_columns = list(table)[1:]
+        table[numeric_columns] = table[numeric_columns].apply(pd.to_numeric)
+        table = table.sort_values(
+            sort_by,
+            ascending=str(table[sort_by].dtype) != "int64"
+        ).rename(
+            columns={sort_by: f"{sort_by}^"}
+        )
 
-        await channel.send(f"```{table_string}```")
+        await channel.send(f"```{table.to_string(index=False)}```")
 
     @staticmethod
     def get_match_history(stats):
