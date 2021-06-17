@@ -67,7 +67,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
             },
             "champs": {
                 "function": self.get_ranked_champs,
-                "help": f"{self.command_prefix}champs name season*\t * - optional (default: current season)"
+                "help": f"{self.command_prefix}champs name season*%s* - optional (default: current season)" % ("\t"*15)
             }
         }
 
