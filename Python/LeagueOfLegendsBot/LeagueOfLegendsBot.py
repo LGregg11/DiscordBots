@@ -2,6 +2,7 @@ from Python.DiscordBotClient import DiscordBotClient
 from Python.LeagueOfLegendsBot.LolAPIWrapper.LolAPIWrapper import LolAPIWrapper
 from Python.LeagueOfLegendsBot.LoLWebScraper import LoLWebScraper
 import pathlib
+import pandas as pd
 
 CONFIGS = {
     "bot_name": "LeagueOfLegendsBot",
@@ -58,11 +59,15 @@ class LeagueOfLegendsBot(DiscordBotClient):
             },
             "rank": {
                 "function": self.get_rank,
-                "help": f"{self.command_prefix}rank \"name 1\" name2 ... \'name n\'"
+                "help": f"{self.command_prefix}rank \"<name 1>\" <name2> ... \'<name n>\'"
             },
             "winloss": {
                 "function": self.get_ranked_win_loss,
-                "help": f"{self.command_prefix}winloss \"name 1\" name2 ... \'name n\'"
+                "help": f"{self.command_prefix}winloss \"<name 1>\" <name2> ... \'<name n>\'"
+            },
+            "champs": {
+                "function": self.get_ranked_champs,
+                "help": f"{self.command_prefix}champs name season*%s* - optional (default: current season)" % ("\t"*15)
             }
         }
 
@@ -85,7 +90,7 @@ class LeagueOfLegendsBot(DiscordBotClient):
         func = self.commands.get(command.lower(), {"function": self.invalid_command})["function"]
         await func(ctx.channel, *args)
 
-    async def invalid_command(self, channel):
+    async def invalid_command(self, channel, *args):
         """
         The default command returned if the command requested is invalid
         :param channel: The discord channel that the command was sent from.
@@ -158,3 +163,20 @@ class LeagueOfLegendsBot(DiscordBotClient):
                 print(str(ex))
                 win_loss_list.append(str(ex))
         await channel.send("\n".join(win_loss_list))
+
+    async def get_ranked_champs(self, channel, *args):
+        if len(args) == 1:
+            summoner_name = args[0]
+
+            season = "2021"
+        elif len(args) == 2:
+            summoner_name, season = args
+        else:
+            await channel.send(f"Unexpected number of arguments given, use {self.command_prefix}help!")
+            return
+        try:
+            table = self.lol_web_scraper.get_most_played_champs(season, summoner_name)
+            table_squashed = table[["#", "Champion", "Played", "KDA"]].to_string(index=False)
+            await channel.send(f"```{table_squashed}```")
+        except RuntimeError as ex:
+            await channel.send(str(ex))
