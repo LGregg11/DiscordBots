@@ -46,4 +46,4 @@ class ProClubsWebScraper:
         except Exception:
             raise RuntimeError(f"{team_name} - Could not get data")
 
-        return response
+        return response["members"]

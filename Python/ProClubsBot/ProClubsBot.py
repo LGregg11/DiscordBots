@@ -39,6 +39,14 @@ class ProClubsBot(DiscordBotClient):
             "members": {
                 "function": self.get_members,
                 "help": f"{self.command_prefix}members \"team name\"*"
+            },
+            "membertotals": {
+                "function": self.get_member_totals,
+                "help": f"{self.command_prefix}membertotals \"team name\"*"
+            },
+            "memberaverages": {
+                "function": self.get_member_averages,
+                "help": f"{self.command_prefix}memberaverages \"team name\"*"
             }
         }
 
@@ -124,18 +132,16 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
 
         await channel.send(s)
 
-    async def get_members(self, channel, *args):
+    async def get_member_totals(self, channel, *args):
         """
         TODO - Allow users to 'order by'. Add '^' to the column name that is being sorted by
-        TODO - Goals avg, Assists avg, Goal inv., Goal inv. avg
         :param channel:
         :param args:
         :return:
         """
-
         sort_by = "Name"
         team_name = self._get_team_name(*args)
-        response = self.pro_clubs_web_scraper.get_members(team_name)
+        members = self.pro_clubs_web_scraper.get_members(team_name)
 
         columns = {
             "proName": "Name",
@@ -143,28 +149,13 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
             "goals": "Goals",
             "assists": "Assists",
             "passesMade": "Passes",
-            "passSuccessRate": "Pass %",
-            "shotSuccessRate": "Shots/Goal %",
-            "redCards": "Dan collectables (Reds)",
-            "manOfTheMatch": "Da Boss awards (MOTM)",
             "tacklesMade": "Tackles",
-            "tackleSuccessRate": "Tackle %"
+            "redCards": "Red cards",
+            "manOfTheMatch": "MOTM Awards",
         }
 
-        table = pd.DataFrame().from_dict(response["members"])
-        table = table[[
-            "proName",
-            "gamesPlayed",
-            "goals",
-            "assists",
-            "passesMade",
-            "passSuccessRate",
-            "shotSuccessRate",
-            "redCards",
-            "manOfTheMatch",
-            "tacklesMade",
-            "tackleSuccessRate"
-                  ]].rename(columns=columns)
+        table = pd.DataFrame().from_dict(members)
+        table = table[list(columns.keys())].rename(columns=columns)
         numeric_columns = list(table)[1:]
         table[numeric_columns] = table[numeric_columns].apply(pd.to_numeric)
         table = table.sort_values(
@@ -174,7 +165,67 @@ Current Points: {stats["points"]} (Projected: {stats["projectedPoints"]})```"""
             columns={sort_by: f"{sort_by}^"}
         )
 
-        await channel.send(f"```{table.to_string(index=False)}```")
+        await channel.send(f"```{team_name} member total stats:\n{table.to_string(index=False)}```")
+
+    async def get_member_averages(self, channel, *args):
+        """
+        TODO - Allow users to 'order by'. Add '^' to the column name that is being sorted by
+        :param channel:
+        :param args:
+        :return:
+        """
+
+        def get_average(dict, stat, per_game_key="gamesPlayed", dp=2):
+            return round(float(dict[stat]) / float(dict[per_game_key]), dp)
+
+        sort_by = "Name"
+        team_name = self._get_team_name(*args)
+        members = self.pro_clubs_web_scraper.get_members(team_name)
+
+        members_avg_stats = []
+        for member_dict in members:
+            members_avg_stats.append({
+                "Name": member_dict["proName"],
+                "Apps": member_dict["gamesPlayed"],
+                "Goals": get_average(member_dict, "goals"),
+                "Assists": get_average(member_dict, "assists"),
+                "Goal Inv.": get_average(member_dict, "goals") + get_average(member_dict, "assists"),
+                "Passes": get_average(member_dict, "passesMade"),
+                "Tackles": get_average(member_dict, "tacklesMade"),
+                "Tackle success(%)": member_dict["tackleSuccessRate"],
+                "Shot success (%)": member_dict["shotSuccessRate"]
+            })
+
+        table = pd.DataFrame().from_dict(members_avg_stats)
+        table = table.sort_values(
+            sort_by,
+            ascending=str(table[sort_by].dtype) != "int64" or str(table[sort_by].dtype) != "float"
+        ).rename(
+            columns={sort_by: f"{sort_by}^"}
+        )
+
+        await channel.send(f"```{team_name} member average stats:\n{table.to_string(index=False)}```")
+
+    async def get_members(self, channel, *args):
+        """
+        TODO - Use tables to add some 'nicknames' for the members based off their stats: i.e. 'Bagsman' if the member
+        TODO - has the most goals scored etc. When a user has a nickname append a nickname to the original name.
+        TODO - If a user has no nickname, give them a 'participation award' nickname..
+        :param channel:
+        :param args:
+        :return:
+        """
+
+        team_name = self._get_team_name(*args)
+        members = self.pro_clubs_web_scraper.get_members(team_name)
+
+        member_names = []
+        for member in members:
+            member_names.append(f"{member['name']}: {member['proName']}")
+
+        join_string = "\n\t- "
+        return_string = f"```{team_name} members:{join_string}" + join_string.join(member_names) + "```"
+        await channel.send(return_string)
 
     @staticmethod
     def get_match_history(stats):
